@@ -1,0 +1,26 @@
+if (!window.parser_uuid) {
+    var message = $('.alert');
+    if (!message.size()) message = $('<div class="alert"></div>');
+
+    $('body').append(message);
+    window.parser_uuid = setInterval(function(){
+                $.ajax({
+                            url: '/admin/status/numbeo',
+                            type: "GET",
+                            success: function (event) {
+                                if (event.status == 'success') {
+                                    clearInterval(window.parser_uuid);
+                                    window.parser_uuid = null;
+                                    message.remove();
+                                    return;
+                                }else if(event.status == 'destroy_all') {
+                                    message.text('Удаление старых данных');
+                                }else{
+                                    message.text('Всего ' + event.all + '; Текущий ' + event.current);
+                                }
+                            }
+                        }
+                )
+    } ,1000);
+
+}
