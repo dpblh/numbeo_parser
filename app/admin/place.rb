@@ -6,7 +6,9 @@ ActiveAdmin.register Place do
   permit_params :city, :name, :price, :currency, :category, :rus_name
 
   index do
-    column :name
+    column :name, sortable: :name do |place|
+      place.rus_name or place.name
+    end
     column :translate do |place|
       text_field_tag place.id, '', class: :translate
     end

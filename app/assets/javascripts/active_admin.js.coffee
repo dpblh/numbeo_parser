@@ -11,8 +11,7 @@ $(->
           id : e.target.name
           translate : e.target.value
         success : (place)->
-          window.sss = place
-          $(eee.target).parent().prev().text(place.name)
+          $(eee.target).parent().prev().text(place.rus_name || place.name)
           $(eee.target).parents('tr').next().find('.translate').focus()
         fault : ->
           console.log 'fault'

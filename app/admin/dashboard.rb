@@ -140,12 +140,12 @@ ActiveAdmin.register_page "Dashboard" do
     # Контроллер перевода
     def translate
       place = Place.find(params[:id])
-      place.name = params[:translate]
+      place.rus_name = params[:translate]
       place.translate = true
       place.save
 
       Place.where(name: place.name).each { |pl|
-        pl.name = params[:translate]
+        pl.rus_name = params[:translate]
         pl.translate = true
         pl.save
       }
