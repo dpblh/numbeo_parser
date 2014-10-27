@@ -166,35 +166,39 @@ ActiveAdmin.register_page "Dashboard" do
       def lambda_recreate
         lambda {
 
-          thread_recreate[:status] = 'destroy_all'
-          Country.destroy_all
-          countries = File.readlines(Rails.root.join('country'))
-          thread_recreate[:all] = countries.size
-          thread_recreate[:status] = 'in progress'
+          ActiveRecord::Base.connection_pool.with_connection do
 
-          countries.each_with_index { |country_name, index|
-            begin
-              country_name.gsub!("\n", '')
-              country = Country.create!(name: country_name)
+            thread_recreate[:status] = 'destroy_all'
+            Country.destroy_all
+            countries = File.readlines(Rails.root.join('country'))
+            thread_recreate[:all] = countries.size
+            thread_recreate[:status] = 'in progress'
 
-              thread_recreate[:country] = country_name
-              thread_recreate[:current] = index
+            countries.each_with_index { |country_name, index|
+              begin
+                country_name.gsub!("\n", '')
+                country = Country.create!(name: country_name)
 
-              uri = URI('http://www.numbeo.com/cost-of-living/country_result.jsp?country='+country_name.gsub(' ', '+'))
-              responder = Net::HTTP.get(uri)
-              doc = Nokogiri::HTML(responder)
-              doc.css('#city > option').each { |node|
-                country.cities.build name: node.content unless node.content == '--- Select city---'
-              }
+                thread_recreate[:country] = country_name
+                thread_recreate[:current] = index
 
-              country.save!
-            rescue Exception
-              #   ignored
-            end
+                uri = URI('http://www.numbeo.com/cost-of-living/country_result.jsp?country='+country_name.gsub(' ', '+'))
+                responder = Net::HTTP.get(uri)
+                doc = Nokogiri::HTML(responder)
+                doc.css('#city > option').each { |node|
+                  country.cities.build name: node.content unless node.content == '--- Select city---'
+                }
 
-            sleep(rand(1) + rand(1000) / 1000.0)
+                country.save!
+              rescue Exception
+                #   ignored
+              end
 
-          }
+              sleep(rand(1) + rand(1000) / 1000.0)
+
+            }
+
+          end
 
         }
       end
@@ -203,48 +207,51 @@ ActiveAdmin.register_page "Dashboard" do
       def lambda_numbeo_parser
         lambda { |id = nil|
 
-          i = 0
-          thread_numbeo_parser[:status] = 'in pregress'
-          thread_numbeo_parser[:all] = City.count
-          predicate = City.where('1=1')
-          predicate.where!(id: id) unless  id.nil?
-          predicate.find_each{ |city|
-            i += 1
-            thread_numbeo_parser[:current] = i
-            url = "http://www.numbeo.com/cost-of-living/city_result.jsp?displayCurrency=RUB&country=#{city.country.name.gsub(' ', '+')}&city=#{city.name.gsub(' ', '+')}"
-            uri = URI(url)
-            document = Net::HTTP.get(uri)
-            nokogiri = Nokogiri::HTML(document)
+          ActiveRecord::Base.connection_pool.with_connection do
+            i = 0
+            thread_numbeo_parser[:status] = 'in pregress'
+            thread_numbeo_parser[:all] = City.count
+            predicate = City.where('1=1')
+            predicate.where!(id: id) unless  id.nil?
+            predicate.find_each{ |city|
+              i += 1
+              thread_numbeo_parser[:current] = i
+              url = "http://www.numbeo.com/cost-of-living/city_result.jsp?displayCurrency=RUB&country=#{city.country.name.gsub(' ', '+')}&city=#{city.name.gsub(' ', '+')}"
+              uri = URI(url)
+              document = Net::HTTP.get(uri)
+              nokogiri = Nokogiri::HTML(document)
 
-            category_name = ''
-            category = nil
-            currency = Currency.find_by_name 'руб'
-            nokogiri.css('.data_wide_table tr').each { |node|
-              category_node = node.css('td.tr_highlighted_menu')
+              category_name = ''
+              category = nil
+              currency = Currency.find_by_code 1
+              nokogiri.css('.data_wide_table tr').each { |node|
+                category_node = node.css('td.tr_highlighted_menu')
 
-              if category_node.size != 0
-                category_name = category_node.first.content
-                category = Category.find_by_name(category_name)
-                if category.nil?
-                  category = Category.create! name: category_name
+                if category_node.size != 0
+                  category_name = category_node.first.content
+                  category = Category.find_by_name(category_name)
+                  if category.nil?
+                    category = Category.create! name: category_name
+                  end
+                else
+                  place = node.css('td:nth-child(1)').first.content
+                  place.gsub!("\n", '')
+                  price = node.css('td:nth-child(2)').first.content
+                  price.gsub!("\n", '')
+                  price.gsub!(' руб', '')
+                  city.places.build name: place, price: price.to_f, currency: currency, category: category
+
                 end
-              else
-                place = node.css('td:nth-child(1)').first.content
-                place.gsub!("\n", '')
-                price = node.css('td:nth-child(2)').first.content
-                price.gsub!("\n", '')
-                price.gsub!(' руб', '')
-                city.places.build name: place, price: price.to_f, currency: currency, category: category
 
-              end
+              }
+
+              city.save!
+
+              sleep(rand(2) + rand(1000) / 1000.0)
 
             }
+          end
 
-            city.save!
-
-            sleep(rand(2) + rand(1000) / 1000.0)
-
-          }
         }
       end
 
