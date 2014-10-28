@@ -18,6 +18,11 @@ if (!window.parser_uuid) {
                                 }else{
                                     message.text('Всего ' + event.all + '; Текущий ' + event.current);
                                 }
+                            },
+                            error: function () {
+                                clearInterval(window.parser_uuid);
+                                window.parser_uuid = null;
+                                message.remove();
                             }
                         }
                 )

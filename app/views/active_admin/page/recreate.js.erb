@@ -18,6 +18,11 @@ if (!window.uuid) {
                                 }else{
                                     message.text('Всего ' + event.all + '; Текущий ' + event.current + '; Страна ' + event.country);
                                 }
+                            },
+                            error: function () {
+                                clearInterval(window.uuid);
+                                window.uuid = null;
+                                message.remove();
                             }
                         }
                 )
