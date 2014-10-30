@@ -1,6 +1,6 @@
 ActiveAdmin.register PlacePosition do
 
-  permit_params :price, :place, :currency, :city
+  permit_params :price, :place_id, :currency_id, :city_id, :country_id
 
   batch_action :destroy, :priority => 1 do |selection|
     PlacePosition.where(id: selection).delete_all
@@ -14,17 +14,32 @@ ActiveAdmin.register PlacePosition do
       place_position.place.rus_name or place_position.place.name
     end
     column :price, sortable: :price do |place_position|
-      place_position.price + ' ' + place_position.currency.name
+      (place_position.price / place_position.currency.rate).round(2).to_s + ' ' + place_position.currency.name unless place_position.price.zero?
     end
     column :city do |place_position|
-      place_position.city.rus_name or place_position.city.name
+      place_position.city.rus_name or place_position.city.name unless place_position.city.nil?
     end
     column :country do |place_position|
-      place_position.country.rus_name or place_position.country.name
+      place_position.country.rus_name or place_position.country.name unless place_position.country.nil?
     end
 
     actions
 
+  end
+
+  show do |place_position|
+    attributes_table do
+      row :id
+      row :price do
+        (place_position.price / place_position.currency.rate).round(2) unless place_position.price.zero?
+      end
+      row :city
+      row :country
+      row :place
+      row :currency
+      row :created_at
+      row :updated_at
+    end
   end
 
   controller do

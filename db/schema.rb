@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20141030102843) do
+ActiveRecord::Schema.define(version: 20141030221941) do
 
   create_table "active_admin_comments", force: true do |t|
     t.string   "namespace"
@@ -94,7 +94,7 @@ ActiveRecord::Schema.define(version: 20141030102843) do
   add_index "currencies", ["rate"], name: "index_currencies_on_rate"
 
   create_table "place_positions", force: true do |t|
-    t.string   "price"
+    t.float    "price",       limit: 255
     t.integer  "city_id"
     t.integer  "place_id"
     t.integer  "currency_id"
