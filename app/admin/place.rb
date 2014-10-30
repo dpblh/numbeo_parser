@@ -2,7 +2,7 @@ ActiveAdmin.register Place do
 
   menu parent: 'Directory'
 
-  permit_params :name, :category, :rus_name, :translate
+  permit_params :name, :category_id, :rus_name, :translate
 
   batch_action :destroy, false
 

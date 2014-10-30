@@ -2,7 +2,7 @@ ActiveAdmin.register City do
 
   menu parent: 'Directory'
 
-  permit_params :name, :country, :rus_name, :analyzed, :translate
+  permit_params :name, :country_id, :rus_name, :analyzed, :translate
 
   batch_action :destroy, false
 
