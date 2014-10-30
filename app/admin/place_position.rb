@@ -1,6 +1,6 @@
 ActiveAdmin.register PlacePosition do
 
-  permit_params :price, :place
+  permit_params :price, :place, :currency, :city
 
   batch_action :destroy, :priority => 1 do |selection|
     PlacePosition.where(id: selection).delete_all
