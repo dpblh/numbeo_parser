@@ -4,6 +4,8 @@ ActiveAdmin.register City do
 
   permit_params :name, :country, :rus_name, :analyzed, :translate
 
+  batch_action :destroy, false
+
   scope :translate
   scope :untranslate
   scope :analyzed

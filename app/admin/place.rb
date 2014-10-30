@@ -4,6 +4,8 @@ ActiveAdmin.register Place do
 
   permit_params :name, :category, :rus_name, :translate
 
+  batch_action :destroy, false
+
   scope :translate
   scope :untranslate
 

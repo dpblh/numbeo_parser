@@ -4,4 +4,14 @@ ActiveAdmin.register Currency do
 
   permit_params :name, :rate, :code
 
+  batch_action :destroy, false
+
+  index do
+    column :rate
+    column :name
+    column :code
+
+    actions
+  end
+
 end

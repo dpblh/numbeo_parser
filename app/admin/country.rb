@@ -4,6 +4,8 @@ ActiveAdmin.register Country do
 
   permit_params :name, :rus_name, :analyzed, :translate
 
+  batch_action :destroy, false
+
   scope :translate
   scope :untranslate
   scope :analyzed
