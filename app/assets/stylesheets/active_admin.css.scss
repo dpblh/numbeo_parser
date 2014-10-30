@@ -35,3 +35,10 @@
   width: 70%;
 }
 
+.place_position {
+  .price, .city, .country {
+    width: 200px;
+    text-align: right;
+  }
+}
+

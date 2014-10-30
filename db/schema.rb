@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20141026144917) do
+ActiveRecord::Schema.define(version: 20141030102843) do
 
   create_table "active_admin_comments", force: true do |t|
     t.string   "namespace"
@@ -50,6 +50,8 @@ ActiveRecord::Schema.define(version: 20141026144917) do
     t.string   "name"
     t.datetime "created_at"
     t.datetime "updated_at"
+    t.string   "rus_name"
+    t.boolean  "translate",  default: false
   end
 
   add_index "categories", ["name"], name: "index_categories_on_name"
@@ -60,6 +62,8 @@ ActiveRecord::Schema.define(version: 20141026144917) do
     t.datetime "created_at"
     t.datetime "updated_at"
     t.string   "rus_name"
+    t.boolean  "translate",  default: false
+    t.boolean  "analyzed",   default: false
   end
 
   add_index "cities", ["name"], name: "index_cities_on_name"
@@ -70,6 +74,8 @@ ActiveRecord::Schema.define(version: 20141026144917) do
     t.datetime "created_at"
     t.datetime "updated_at"
     t.string   "rus_name"
+    t.boolean  "translate",  default: false
+    t.boolean  "analyzed",   default: false
   end
 
   add_index "countries", ["name"], name: "index_countries_on_name"
@@ -87,11 +93,24 @@ ActiveRecord::Schema.define(version: 20141026144917) do
   add_index "currencies", ["name"], name: "index_currencies_on_name"
   add_index "currencies", ["rate"], name: "index_currencies_on_rate"
 
-  create_table "places", force: true do |t|
-    t.string   "name"
+  create_table "place_positions", force: true do |t|
     t.string   "price"
     t.integer  "city_id"
+    t.integer  "place_id"
     t.integer  "currency_id"
+    t.datetime "created_at"
+    t.datetime "updated_at"
+    t.integer  "country_id"
+  end
+
+  add_index "place_positions", ["city_id"], name: "index_place_positions_on_city_id"
+  add_index "place_positions", ["country_id"], name: "index_place_positions_on_country_id"
+  add_index "place_positions", ["currency_id"], name: "index_place_positions_on_currency_id"
+  add_index "place_positions", ["place_id"], name: "index_place_positions_on_place_id"
+  add_index "place_positions", ["price"], name: "index_place_positions_on_price"
+
+  create_table "places", force: true do |t|
+    t.string   "name"
     t.integer  "category_id"
     t.datetime "created_at"
     t.datetime "updated_at"
@@ -100,10 +119,7 @@ ActiveRecord::Schema.define(version: 20141026144917) do
   end
 
   add_index "places", ["category_id"], name: "index_places_on_category_id"
-  add_index "places", ["city_id"], name: "index_places_on_city_id"
-  add_index "places", ["currency_id"], name: "index_places_on_currency_id"
   add_index "places", ["name"], name: "index_places_on_name"
-  add_index "places", ["price"], name: "index_places_on_price"
   add_index "places", ["rus_name"], name: "index_places_on_rus_name"
   add_index "places", ["translate"], name: "index_places_on_translate"
 

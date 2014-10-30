@@ -5,8 +5,7 @@ Rails.application.routes.draw do
 
   get '/admin/recreate' => 'admin/dashboard#recreate'
   get '/admin/parser' => 'admin/dashboard#numbeo_parser'
-  get '/admin/status' => 'admin/dashboard#status_recreate'
-  get '/admin/status/numbeo' => 'admin/dashboard#status_numbeo_parcer'
+  get '/admin/status' => 'admin/dashboard#status_numbeo_parcer'
   get '/admin/cancel_recreate' => 'admin/dashboard#cancel_recreate'
   get '/admin/cancel_numbeo_parser' => 'admin/dashboard#cancel_numbeo_parser'
   put '/admin/translate' => 'admin/dashboard#translate'

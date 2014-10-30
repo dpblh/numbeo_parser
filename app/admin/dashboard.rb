@@ -1,4 +1,5 @@
 require 'nokogiri'
+require 'open-uri'
 
 ActiveAdmin.register_page "Dashboard" do
 
@@ -85,7 +86,7 @@ ActiveAdmin.register_page "Dashboard" do
           self.class.lambda_recreate.call
         end
       end
-
+      head :ok
     end
 
     # Отменяет предидущее
@@ -98,9 +99,10 @@ ActiveAdmin.register_page "Dashboard" do
     def numbeo_parser
       if self.class.thread_numbeo_parser.nil? or !self.class.thread_numbeo_parser.alive?
         self.class.thread_numbeo_parser = Thread.new do
-          self.class.lambda_numbeo_parser.call params[:city]
+          self.class.lambda_numbeo_parser.call params[:country], params[:city]
         end
       end
+      head :ok
     end
 
     # Отменяет предидущее
@@ -109,48 +111,23 @@ ActiveAdmin.register_page "Dashboard" do
       head :ok
     end
 
-    # Простая реализация контроллера по оповещению статува выполнения "пересоздания базы городов"
-    def status_recreate
-      status = {}
-      if self.class.thread_recreate.alive?
-        status[:status] = self.class.thread_recreate[:status].to_s
-        status[:country] = self.class.thread_recreate[:country].to_s
-        status[:all] = self.class.thread_recreate[:all].to_s
-        status[:current] = self.class.thread_recreate[:current].to_s
-      else
-        status[:status] = 'success'
-      end
-      render json: status
-    end
-
-    # Простая реализация контроллера по оповещению статува выполнения "Сбора мест"
+    # Простая реализация контроллера по оповещению статува выполнения
     def status_numbeo_parcer
-      status = {}
-      if self.class.thread_numbeo_parser.alive?
-        status[:status] = self.class.thread_numbeo_parser[:status].to_s
-        status[:country] = self.class.thread_numbeo_parser[:country].to_s
-        status[:all] = self.class.thread_numbeo_parser[:all].to_s
-        status[:current] = self.class.thread_numbeo_parser[:current].to_s
-      else
-        status[:status] = 'success'
+      status = ''
+      if self.class.thread_numbeo_parser and self.class.thread_numbeo_parser.alive?
+        status += self.class.thread_numbeo_parser[:status].to_s + ' : '
+        status += self.class.thread_numbeo_parser[:item].to_s + ' '
+        status += self.class.thread_numbeo_parser[:current].to_s + ' из '
+        status += self.class.thread_numbeo_parser[:all].to_s
+      elsif self.class.thread_recreate and self.class.thread_recreate.alive?
+        status += self.class.thread_recreate[:status].to_s + ' : '
+        status += self.class.thread_recreate[:item].to_s + ' '
+        status += self.class.thread_recreate[:current].to_s + ' из '
+        status += self.class.thread_recreate[:all].to_s
       end
-      render json: status
+      render json: {status: status}
     end
 
-    # Контроллер перевода
-    def translate
-      place = Place.find(params[:id])
-      place.rus_name = params[:translate]
-      place.translate = true
-      place.save
-
-      Place.where(name: place.name).each { |pl|
-        pl.rus_name = params[:translate]
-        pl.translate = true
-        pl.save
-      }
-      render json: place
-    end
 
     # Контроллер рендерит <option></option> городов по стране
     def cities_by_country
@@ -168,30 +145,32 @@ ActiveAdmin.register_page "Dashboard" do
 
           ActiveRecord::Base.connection_pool.with_connection do
 
-            thread_recreate[:status] = 'destroy_all'
+            thread_recreate[:status] = 'Удаление'
             Country.destroy_all
-            countries = File.readlines(Rails.root.join('country'))
-            thread_recreate[:all] = countries.size
-            thread_recreate[:status] = 'in progress'
 
-            countries.each_with_index { |country_name, index|
-              begin
-                country_name.gsub!("\n", '')
-                country = Country.create!(name: country_name)
+            doc = Nokogiri::HTML(open('http://www.numbeo.com/cost-of-living/'))
+            thread_recreate[:all] = doc.css('#country > option').size
+            thread_recreate[:status] = 'Создание'
 
-                thread_recreate[:country] = country_name
-                thread_recreate[:current] = index
+            doc.css('#country > option').each_with_index { |node, index|
+              unless node.attribute('value').content.blank?
 
-                uri = URI('http://www.numbeo.com/cost-of-living/country_result.jsp?country='+country_name.gsub(' ', '+'))
-                responder = Net::HTTP.get(uri)
-                doc = Nokogiri::HTML(responder)
-                doc.css('#city > option').each { |node|
-                  country.cities.build name: node.content unless node.content == '--- Select city---'
-                }
+                begin
 
-                country.save!
-              rescue Exception
-                #   ignored
+                  country = Country.create!(name: node.attribute('value').content)
+
+                  thread_recreate[:item] = country.name
+                  thread_recreate[:current] = index
+
+                  doc = Nokogiri::HTML(open('http://www.numbeo.com/cost-of-living/country_result.jsp?country='+country.name.gsub(' ', '+')))
+                  doc.css('#city > option').each { |node|
+                    country.cities.build name: node.attribute('value').content unless node.attribute('value').content.blank?
+                  }
+
+                  country.save!
+                rescue Exception
+                  #   ignored
+                end
               end
 
               sleep(rand(1) + rand(1000) / 1000.0)
@@ -205,25 +184,35 @@ ActiveAdmin.register_page "Dashboard" do
 
       # Лямбда для потока парсинга мест
       def lambda_numbeo_parser
-        lambda { |id = nil|
+        lambda { |country_id = nil ,city_id = nil|
 
           ActiveRecord::Base.connection_pool.with_connection do
+
+            currency = Currency.find_by_code 1
+
             i = 0
-            thread_numbeo_parser[:status] = 'in pregress'
-            thread_numbeo_parser[:all] = City.count
-            predicate = City.where('1=1')
-            predicate.where!(id: id) unless  id.nil?
-            predicate.find_each{ |city|
+            thread_numbeo_parser[:status] = 'Парсинг Numbeo.com'
+            thread_numbeo_parser[:all] = Country.count
+            predicate_country = Country.where('1=1')
+            unless  country_id.nil?
+              predicate_country.where!(id: country_id.to_i)
+            else
+              Country.find_each {|c|
+                c.analyzed = false
+              }
+            end
+            predicate_country.find_each{ |country|
+              deleted_country = PlacePosition.where(country_id: country.id)
+              deleted_country.each {|c|
+                c.delete
+              }
               i += 1
               thread_numbeo_parser[:current] = i
-              url = "http://www.numbeo.com/cost-of-living/city_result.jsp?displayCurrency=RUB&country=#{city.country.name.gsub(' ', '+')}&city=#{city.name.gsub(' ', '+')}"
-              uri = URI(url)
-              document = Net::HTTP.get(uri)
-              nokogiri = Nokogiri::HTML(document)
+              thread_numbeo_parser[:item] = country.name
+              nokogiri = Nokogiri::HTML(open("http://www.numbeo.com/cost-of-living/country_result.jsp?displayCurrency=RUB&country=#{country.name.gsub(' ', '+')}"))
 
               category_name = ''
               category = nil
-              currency = Currency.find_by_code 1
               nokogiri.css('.data_wide_table tr').each { |node|
                 category_node = node.css('td.tr_highlighted_menu')
 
@@ -234,17 +223,80 @@ ActiveAdmin.register_page "Dashboard" do
                     category = Category.create! name: category_name
                   end
                 else
-                  place = node.css('td:nth-child(1)').first.content
-                  place.gsub!("\n", '')
+                  place_name = node.css('td:nth-child(1)').first.content
+                  place = Place.find_by_name place_name
+                  if place.nil?
+                    place = Place.create! name: place_name, category: category
+                  end
                   price = node.css('td:nth-child(2)').first.content
-                  price.gsub!("\n", '')
+
                   price.gsub!(' руб', '')
-                  city.places.build name: place, price: price.to_f, currency: currency, category: category
+                  price.gsub!(',', '')
+                  place_position = PlacePosition.create!(price: price.to_f, currency: currency)
+                  place.place_positions << place_position
+                  country.place_positions << place_position
 
                 end
 
               }
 
+              country.analyzed = true
+              country.save!
+
+              sleep(rand(2) + rand(1000) / 1000.0)
+
+            }
+            # PlacePosition.destroy_all
+            i = 0
+            thread_numbeo_parser[:status] = 'Парсинг Numbeo.com'
+            thread_numbeo_parser[:all] = City.count
+            predicate = City.where('1=1')
+            unless  city_id.nil?
+              predicate.where!(id: city_id)
+            else
+              City.find_each {|c|
+                c.analyzed = false
+              }
+            end
+            predicate.find_each{ |city|
+              deleted_city = PlacePosition.where(city_id: city.id)
+              deleted_city.each {|c|
+                c.delete
+              }
+              i += 1
+              thread_numbeo_parser[:current] = i
+              thread_numbeo_parser[:item] = city.name
+              nokogiri = Nokogiri::HTML(open("http://www.numbeo.com/cost-of-living/city_result.jsp?displayCurrency=RUB&country=#{city.country.name.gsub(' ', '+')}&city=#{city.name.gsub(' ', '+')}"))
+
+              category_name = ''
+              category = nil
+              nokogiri.css('.data_wide_table tr').each { |node|
+                category_node = node.css('td.tr_highlighted_menu')
+
+                if category_node.size != 0
+                  category_name = category_node.first.content
+                  category = Category.find_by_name(category_name)
+                  if category.nil?
+                    category = Category.create! name: category_name
+                  end
+                else
+                  place_name = node.css('td:nth-child(1)').first.content
+                  place = Place.find_by_name place_name
+                  if place.nil?
+                    place = Place.create! name: place_name, category: category
+                  end
+                  price = node.css('td:nth-child(2)').first.content
+
+                  price.gsub!(' руб', '')
+                  place_position = PlacePosition.create!(price: price.to_f, currency: currency)
+                  place.place_positions << place_position
+                  city.place_positions << place_position
+
+                end
+
+              }
+
+              city.analyzed = true
               city.save!
 
               sleep(rand(2) + rand(1000) / 1000.0)

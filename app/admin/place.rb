@@ -1,32 +1,31 @@
 ActiveAdmin.register Place do
 
+  permit_params :name, :category, :rus_name, :translate
+
   scope :translate
   scope :untranslate
 
-  permit_params :city, :name, :price, :currency, :category, :rus_name
 
   index do
-    column :name, sortable: :name do |place|
-      place.rus_name or place.name
-    end
+    column :translate
+    column :name
+    column :rus_name
     column :translate do |place|
       text_field_tag place.id, '', class: :translate
     end
-    column :price, sortable: :price do |place|
-      place.price + ' ' + place.currency.name
-    end
-    # column :city do |place|
-    #   place.city.name
-    # end
-    # column :category do |place|
-    #   place.category.name
-    # end
     actions
-
   end
 
-  preserve_default_filters!
-  filter :country, as: :select, collection: proc {Country.all}
+  # Контроллер перевода
+  member_action :translate, method: :put do
+    head :fault and return if params[:translate].blank?
+    place = Place.find(params[:id])
+    place.rus_name = params[:translate]
+    place.translate = true
+    place.save
+
+    render json: place
+  end
 
 
 end
