@@ -1,10 +1,11 @@
 ActiveAdmin.register Place do
 
+  menu parent: 'Directory'
+
   permit_params :name, :category, :rus_name, :translate
 
   scope :translate
   scope :untranslate
-
 
   index do
     column :translate

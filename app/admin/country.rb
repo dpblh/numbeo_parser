@@ -1,12 +1,13 @@
 ActiveAdmin.register Country do
 
+  menu parent: 'Directory'
+
   permit_params :name, :rus_name, :analyzed, :translate
 
   scope :translate
   scope :untranslate
   scope :analyzed
   scope :unanalyzed
-
 
   index do
     column :analyzed

@@ -1,12 +1,13 @@
 ActiveAdmin.register City do
 
+  menu parent: 'Directory'
+
   permit_params :name, :country, :rus_name, :analyzed, :translate
 
   scope :translate
   scope :untranslate
   scope :analyzed
   scope :unanalyzed
-
 
   index do
     column :analyzed

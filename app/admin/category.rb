@@ -1,7 +1,8 @@
 ActiveAdmin.register Category do
 
-  permit_params :name, :rus_name, :translate
+  menu parent: 'Directory'
 
+  permit_params :name, :rus_name, :translate
 
   scope :translate
   scope :untranslate
