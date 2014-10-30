@@ -12,7 +12,6 @@ $(->
 
   $('input[class=translate]').keypress( (e)->
     if e.which == 13
-      e.preventDefault
       $.ajax(
         method : 'PUT'
         url : "/admin/#{resource}/#{e.target.name}/translate"
@@ -25,6 +24,8 @@ $(->
         error : ->
           console.log 'fault'
       )
+      e.preventDefault
+      return false
   )
 
   $('#countries_selector').change((e) ->

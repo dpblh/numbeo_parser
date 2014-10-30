@@ -197,21 +197,15 @@ ActiveAdmin.register_page "Dashboard" do
             unless  country_id.nil?
               predicate_country.where!(id: country_id.to_i)
             else
-              Country.find_each {|c|
-                c.analyzed = false
-              }
+              Country.update_all(analyzed: false)
             end
             predicate_country.find_each{ |country|
-              deleted_country = PlacePosition.where(country_id: country.id)
-              deleted_country.each {|c|
-                c.delete
-              }
+              PlacePosition.where(country_id: country.id).destroy_all
               i += 1
               thread_numbeo_parser[:current] = i
               thread_numbeo_parser[:item] = country.name
               nokogiri = Nokogiri::HTML(open("http://www.numbeo.com/cost-of-living/country_result.jsp?displayCurrency=RUB&country=#{country.name.gsub(' ', '+')}"))
 
-              category_name = ''
               category = nil
               nokogiri.css('.data_wide_table tr').each { |node|
                 category_node = node.css('td.tr_highlighted_menu')
@@ -246,7 +240,7 @@ ActiveAdmin.register_page "Dashboard" do
               sleep(rand(2) + rand(1000) / 1000.0)
 
             }
-            # PlacePosition.destroy_all
+
             i = 0
             thread_numbeo_parser[:status] = 'Парсинг Numbeo.com'
             thread_numbeo_parser[:all] = City.count
@@ -254,21 +248,15 @@ ActiveAdmin.register_page "Dashboard" do
             unless  city_id.nil?
               predicate.where!(id: city_id)
             else
-              City.find_each {|c|
-                c.analyzed = false
-              }
+              City.update_all(analyzed: false)
             end
             predicate.find_each{ |city|
-              deleted_city = PlacePosition.where(city_id: city.id)
-              deleted_city.each {|c|
-                c.delete
-              }
+              PlacePosition.where(city_id: city.id).delete_all
               i += 1
               thread_numbeo_parser[:current] = i
               thread_numbeo_parser[:item] = city.name
               nokogiri = Nokogiri::HTML(open("http://www.numbeo.com/cost-of-living/city_result.jsp?displayCurrency=RUB&country=#{city.country.name.gsub(' ', '+')}&city=#{city.name.gsub(' ', '+')}"))
 
-              category_name = ''
               category = nil
               nokogiri.css('.data_wide_table tr').each { |node|
                 category_node = node.css('td.tr_highlighted_menu')
